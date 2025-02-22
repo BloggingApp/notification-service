@@ -28,7 +28,6 @@ func main() {
 	}
 
 	mailer := mailer.New(logger, rabbitmq)
-
 	mailer.StartProcessing()
 
 	log.Println("Notification service started")
