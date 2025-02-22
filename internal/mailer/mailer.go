@@ -23,6 +23,7 @@ type Mailer struct {
 
 func New(logger *zap.Logger, rabbitmq *rabbitmq.MQConn) *Mailer {
 	return &Mailer{
+		logger: logger,
 		rabbitmq: rabbitmq,
 		from: os.Getenv("FROM"),
 		pass: os.Getenv("PASS"),
