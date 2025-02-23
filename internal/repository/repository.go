@@ -9,7 +9,7 @@ type Repository struct {
 	Postgres *postgres.PGRepo
 }
 
-func New(db *pgxpool.Conn) *Repository {
+func New(db *pgxpool.Pool) *Repository {
 	return &Repository{
 		Postgres: postgres.New(db),
 	}

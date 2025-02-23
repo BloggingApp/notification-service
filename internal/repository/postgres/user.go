@@ -11,10 +11,10 @@ import (
 )
 
 type userRepo struct {
-	db *pgxpool.Conn
+	db *pgxpool.Pool
 }
 
-func newUserRepo(db *pgxpool.Conn) User {
+func newUserRepo(db *pgxpool.Pool) User {
 	return &userRepo{
 		db: db,
 	}

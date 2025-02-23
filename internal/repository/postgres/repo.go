@@ -18,7 +18,7 @@ type PGRepo struct {
 	User
 }
 
-func New(db *pgxpool.Conn) *PGRepo {
+func New(db *pgxpool.Pool) *PGRepo {
 	return &PGRepo{
 		User: newUserRepo(db),
 	}
