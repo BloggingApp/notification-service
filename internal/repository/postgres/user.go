@@ -39,26 +39,6 @@ func (r *userRepo) FindByID(ctx context.Context, id uuid.UUID) (*model.User, err
 }
 
 func (r *userRepo) UpdateByID(ctx context.Context, id uuid.UUID, updates map[string]interface{}) error {
-	if len(updates) == 0 {
-		return nil
-	}
-
-	allowedFields := []string{"username", "display_name"}
-	allowedFieldsSet := make(map[string]struct{}, len(allowedFields))
-	for _, field := range allowedFields {
-		allowedFieldsSet[field] = struct{}{}
-	}
-
-	for field := range updates {
-		if _, ok := allowedFieldsSet[field]; !ok {
-			delete(updates, field)
-		}
-	}
-
-	if len(updates) == 0 {
-		return nil
-	}
-
 	query := "UPDATE users SET "
 	args := []interface{}{}
 	i := 1
