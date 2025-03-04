@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/BloggingApp/notification-service/internal/dto"
 	"github.com/BloggingApp/notification-service/internal/rabbitmq"
 	"go.uber.org/zap"
 )
@@ -45,7 +46,7 @@ func (m *Mailer) ProcessRegistrationCodes() {
 	}
 
 	for msg := range msgs {
-		var message rabbitmq.NotificateUserCodeDto
+		var message dto.MQNotificateUserCode
 		if err := json.Unmarshal(msg.Body, &message); err != nil {
 			m.logger.Sugar().Errorf("Failed to unmarshal json in queue(%s): %s", queue, err.Error())
 			msg.Nack(false, false)
@@ -65,7 +66,7 @@ func (m *Mailer) ProcessRegistrationCodes() {
 	}
 }
 
-func (m *Mailer) SendRegistrationCodeMail(input rabbitmq.NotificateUserCodeDto) error {
+func (m *Mailer) SendRegistrationCodeMail(input dto.MQNotificateUserCode) error {
 	subject := "Verify your email"
 	body := fmt.Sprintf("Your code:\n<b>%d</b>", input.Code)
 
@@ -90,7 +91,7 @@ func (m *Mailer) ProcessSignInCodes() {
 	}
 
 	for msg := range msgs {
-		var message rabbitmq.NotificateUserCodeDto
+		var message dto.MQNotificateUserCode
 		if err := json.Unmarshal(msg.Body, &message); err != nil {
 			m.logger.Sugar().Errorf("Failed to unmarshal json in queue(%s): %s", queue, err.Error())
 			msg.Nack(false, false)
@@ -110,7 +111,7 @@ func (m *Mailer) ProcessSignInCodes() {
 	}
 }
 
-func (m *Mailer) SendSignInCodeMail(input rabbitmq.NotificateUserCodeDto) error {
+func (m *Mailer) SendSignInCodeMail(input dto.MQNotificateUserCode) error {
 	subject := "Two-factor authentication"
 	body := fmt.Sprintf("Your code:\n<b>%d</b>", input.Code)
 

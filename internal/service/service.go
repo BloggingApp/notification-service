@@ -7,6 +7,7 @@ import (
 	"github.com/BloggingApp/notification-service/internal/rabbitmq"
 	"github.com/BloggingApp/notification-service/internal/repository"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 type User interface {
@@ -16,12 +17,18 @@ type User interface {
 	StartUpdating(ctx context.Context)
 }
 
-type Service struct {
-	User
+type Notification interface {
+
 }
 
-func New(repo *repository.Repository, rabbitmq *rabbitmq.MQConn) *Service {
-	return &Service{
+type Service struct {
+	User
+	Notification
+}
 
+func New(logger *zap.Logger, repo *repository.Repository, rabbitmq *rabbitmq.MQConn) *Service {
+	return &Service{
+		User: newUserService(logger, repo, rabbitmq),
+		Notification: newNotificationService(logger, repo, rabbitmq),
 	}
 }

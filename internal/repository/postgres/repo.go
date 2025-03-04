@@ -14,12 +14,20 @@ type User interface {
 	UpdateByID(ctx context.Context, id uuid.UUID, updates map[string]interface{}) error
 }
 
+type Notification interface {
+	GetInterestedFollowers(ctx context.Context, authorID uuid.UUID) ([]uuid.UUID, error)
+	CreateBatch(ctx context.Context, notifications []model.Notification) error
+	CreateBatched(ctx context.Context, notifications []model.Notification, batchSize int) error
+}
+
 type PGRepo struct {
 	User
+	Notification
 }
 
 func New(db *pgxpool.Pool) *PGRepo {
 	return &PGRepo{
 		User: newUserRepo(db),
+		Notification: newNotificationRepo(db),
 	}
 }

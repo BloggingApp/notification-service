@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/BloggingApp/notification-service/internal/dto"
 	"github.com/BloggingApp/notification-service/internal/model"
 	"github.com/BloggingApp/notification-service/internal/rabbitmq"
 	"github.com/BloggingApp/notification-service/internal/repository"
@@ -39,7 +40,7 @@ func (s *userService) updateByID(ctx context.Context, id uuid.UUID, updates map[
 		return nil
 	}
 
-	allowedFields := []string{"username", "display_name"}
+	allowedFields := []string{"username", "display_name", "avatar_url"}
 	allowedFieldsSet := make(map[string]struct{}, len(allowedFields))
 	for _, field := range allowedFields {
 		allowedFieldsSet[field] = struct{}{}
@@ -56,6 +57,34 @@ func (s *userService) updateByID(ctx context.Context, id uuid.UUID, updates map[
 	}
 
 	return s.repo.Postgres.User.UpdateByID(ctx, id, updates)
+}
+
+func (s *userService) StartCreating(ctx context.Context) {
+	msgs, err := s.rabbitmq.ConsumeExchange(rabbitmq.USERS_CREATED_EXCHANGE)
+	if err != nil {
+		panic(err)
+	}
+
+	for msg := range msgs {
+		var userCreatedDto dto.MQUserCreated
+		if err := json.Unmarshal(msg.Body, &userCreatedDto); err != nil {
+			msg.Ack(false)
+			continue
+		}
+
+		if err := s.create(ctx, model.User{
+			ID: userCreatedDto.ID,
+			Username: userCreatedDto.Username,
+			DisplayName: userCreatedDto.DisplayName,
+			AvatarURL: userCreatedDto.AvatarURL,
+		}); err != nil {
+			s.logger.Sugar().Errorf("failed to create user(%s): %s", userCreatedDto.ID.String(), err.Error())
+			msg.Ack(false)
+			continue
+		}
+
+		msg.Ack(false)
+	}
 }
 
 func (s *userService) StartUpdating(ctx context.Context) {
