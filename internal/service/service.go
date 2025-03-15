@@ -14,11 +14,12 @@ type User interface {
 	create(ctx context.Context, user model.User) error
 	FindByID(ctx context.Context, id uuid.UUID) (*model.User, error)
 	updateByID(ctx context.Context, id uuid.UUID, updates map[string]interface{}) error
+	StartCreating(ctx context.Context)
 	StartUpdating(ctx context.Context)
 }
 
 type Notification interface {
-
+	StartProcessingNewPostNotifications(ctx context.Context)
 }
 
 type Service struct {
