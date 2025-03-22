@@ -16,6 +16,7 @@ type User interface {
 	updateByID(ctx context.Context, id uuid.UUID, updates map[string]interface{}) error
 	StartCreating(ctx context.Context)
 	StartUpdating(ctx context.Context)
+	StartCreatingFollowers(ctx context.Context)
 }
 
 type Notification interface {

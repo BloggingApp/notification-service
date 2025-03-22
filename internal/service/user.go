@@ -32,7 +32,7 @@ func (s *userService) create(ctx context.Context, user model.User) error {
 
 // TODO: cache result
 func (s *userService) FindByID(ctx context.Context, id uuid.UUID) (*model.User, error) {
-	return s.repo.Postgres.User.FindByID(ctx, id)	
+	return s.repo.Postgres.User.FindByID(ctx, id)
 }
 
 func (s *userService) updateByID(ctx context.Context, id uuid.UUID, updates map[string]interface{}) error {
@@ -115,6 +115,33 @@ func (s *userService) StartUpdating(ctx context.Context) {
 
 		if err := s.updateByID(ctx, userID, updates); err != nil {
 			s.logger.Sugar().Errorf("failed to update user(%s): %s", userID.String(), err.Error())
+			msg.Ack(false)
+			continue
+		}
+
+		msg.Ack(false)
+	}
+}
+
+func (s *userService) StartCreatingFollowers(ctx context.Context) {
+	msgs, err := s.rabbitmq.Consume(rabbitmq.FOLLOWS_QUEUE)
+	if err != nil {
+		panic(err)
+	}
+
+	for msg := range msgs {
+		var follower dto.MQFollow
+		if err := json.Unmarshal(msg.Body, &follower); err != nil {
+			msg.Ack(false)
+			continue
+		}
+
+		if err := s.repo.Postgres.User.CreateFollower(ctx, model.Follower{
+			UserID: follower.UserID,
+			FollowerID: follower.FollowerID,
+			NewPostNotificationsEnabled: false,
+		}); err != nil {
+			s.logger.Sugar().Errorf("failed to create new follower(%s) who follows user(%s): %s", follower.FollowerID.String(), follower.UserID.String(), err.Error())
 			msg.Ack(false)
 			continue
 		}

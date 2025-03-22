@@ -24,3 +24,8 @@ type MQPostCreated struct {
 	PostTitle string    `json:"post_title"`
 	CreatedAt time.Time `json:"created_at"`
 }
+
+type MQFollow struct {
+	UserID     uuid.UUID `json:"user_id"`
+	FollowerID uuid.UUID `json:"follower_id"`
+}

@@ -35,7 +35,7 @@ func main() {
 	}
 
 	db, err := postgres.Connect(ctx, config.DBConfig{
-		Username: os.Getenv("POSTGRES_USERNAME"),
+		Username: os.Getenv("POSTGRES_USER"),
 		Password: os.Getenv("POSTGRES_PASSWORD"),
 		Host: os.Getenv("POSTGRES_HOST"),
 		Port: os.Getenv("POSTGRES_PORT"),
@@ -56,9 +56,10 @@ func main() {
 	mailer := mailer.New(logger, rabbitmq)
 	mailer.StartProcessing()
 
-	services.User.StartCreating(ctx)
-	services.User.StartUpdating(ctx)
-	services.Notification.StartProcessingNewPostNotifications(ctx)
+	go services.User.StartCreating(ctx)
+	go services.User.StartUpdating(ctx)
+	go services.User.StartCreatingFollowers(ctx)
+	go services.Notification.StartProcessingNewPostNotifications(ctx)
 
 	log.Println("Notification service started")
 
