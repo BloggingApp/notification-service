@@ -57,7 +57,7 @@ func (r *notificationRepo) CreateBatch(ctx context.Context, notifications []mode
 	}
 
 	query = query[:len(query)-1]
-	_, err := r.db.Exec(ctx, query)
+	_, err := r.db.Exec(ctx, query, values...)
 	return err
 }
 
