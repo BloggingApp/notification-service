@@ -4,24 +4,31 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/BloggingApp/notification-service/internal/dto"
 	"github.com/BloggingApp/notification-service/internal/model"
 	"github.com/BloggingApp/notification-service/internal/rabbitmq"
 	"github.com/BloggingApp/notification-service/internal/repository"
+	"github.com/BloggingApp/notification-service/internal/repository/redisrepo"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
 
 type notificationService struct {
 	logger *zap.Logger
 	repo *repository.Repository
+	rdb *redis.Client
 	rabbitmq *rabbitmq.MQConn
 }
 
-func newNotificationService(logger *zap.Logger, repo *repository.Repository, rabbitmq *rabbitmq.MQConn) Notification {
+func newNotificationService(logger *zap.Logger, repo *repository.Repository, rdb *redis.Client, rabbitmq *rabbitmq.MQConn) Notification {
 	return &notificationService{
 		logger: logger,
 		repo: repo,
+		rdb: rdb,
 		rabbitmq: rabbitmq,
 	}
 }
@@ -73,4 +80,27 @@ func (s *notificationService) StartProcessingNewPostNotifications(ctx context.Co
 
 		msg.Ack(false)
 	}
+}
+
+func (s *notificationService) GetUserNotifications(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]*model.Notification, error) {
+	notificationsCache, err := redisrepo.Get[[]*model.Notification](s.rdb, ctx, redisrepo.UserNotificationsKey(userID.String(), limit, offset))
+	if err == nil {
+		return *notificationsCache, nil
+	}
+	if err != redis.Nil {
+		s.logger.Sugar().Errorf("failed to get user(%s)'s notifications from redis: %s", userID.String(), err.Error())
+		return nil, ErrInternal
+	}
+
+	notifications, err := s.repo.Postgres.Notification.GetUserNotifications(ctx, userID, limit, offset)
+	if err != nil && err != pgx.ErrNoRows {
+		s.logger.Sugar().Errorf("failed to get user(%s)'s notifications from postgres: %s", userID.String(), err.Error())
+		return nil, ErrInternal
+	}
+
+	if err := redisrepo.SetJSON(s.rdb, ctx, redisrepo.UserNotificationsKey(userID.String(), limit, offset), notifications, time.Minute * 2); err != nil {
+		s.logger.Sugar().Errorf("failed to set user(%s)'s notification in redis cache: %s", userID.String(), err.Error())
+	}
+
+	return notifications, nil
 }

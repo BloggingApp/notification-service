@@ -9,19 +9,22 @@ import (
 	"github.com/BloggingApp/notification-service/internal/rabbitmq"
 	"github.com/BloggingApp/notification-service/internal/repository"
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
 
 type userService struct {
 	logger *zap.Logger
 	repo *repository.Repository
+	rdb *redis.Client
 	rabbitmq *rabbitmq.MQConn
 }
 
-func newUserService(logger *zap.Logger, repo *repository.Repository, rabbitmq *rabbitmq.MQConn) User {
+func newUserService(logger *zap.Logger, repo *repository.Repository, rdb *redis.Client, rabbitmq *rabbitmq.MQConn) User {
 	return &userService{
 		logger: logger,
 		repo: repo,
+		rdb: rdb,
 		rabbitmq: rabbitmq,
 	}
 }

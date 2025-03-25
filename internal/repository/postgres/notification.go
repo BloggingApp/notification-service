@@ -9,6 +9,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+const (
+	GET_NOTIFICATIONS_MAX_LIMIT = 10
+)
+
 type notificationRepo struct {
 	db *pgxpool.Pool
 }
@@ -74,4 +78,44 @@ func (r *notificationRepo) CreateBatched(ctx context.Context, notifications []mo
 	}
 
 	return nil
+}
+
+func (r *notificationRepo) GetUserNotifications(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]*model.Notification, error) {
+	if limit > GET_NOTIFICATIONS_MAX_LIMIT {
+		limit = GET_NOTIFICATIONS_MAX_LIMIT
+	}
+	
+	rows, err := r.db.Query(
+		ctx,
+		`
+		SELECT n.id, n.type, n.message, n.created_at
+		FROM notifications n
+		WHERE n.receiver_id = $1
+		LIMIT $2
+		OFFSET $3
+		ORDER BY n.created_at DESC
+		`,
+		userID, limit, offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var notifications []*model.Notification
+	for rows.Next() {
+		var notification model.Notification
+		if err := rows.Scan(&notification.ID, &notification.Type, &notification.Message, &notification.CreatedAt); err != nil {
+			return nil, err
+		}
+		notification.ReceiverID = userID
+
+		notifications = append(notifications, &notification)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return notifications, nil
 }

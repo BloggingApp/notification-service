@@ -20,6 +20,7 @@ type Notification interface {
 	GetInterestedFollowers(ctx context.Context, authorID uuid.UUID) ([]uuid.UUID, error)
 	CreateBatch(ctx context.Context, notifications []model.Notification) error
 	CreateBatched(ctx context.Context, notifications []model.Notification, batchSize int) error
+	GetUserNotifications(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]*model.Notification, error)
 }
 
 type PGRepo struct {

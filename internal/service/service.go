@@ -7,6 +7,7 @@ import (
 	"github.com/BloggingApp/notification-service/internal/rabbitmq"
 	"github.com/BloggingApp/notification-service/internal/repository"
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
 
@@ -21,6 +22,7 @@ type User interface {
 
 type Notification interface {
 	StartProcessingNewPostNotifications(ctx context.Context)
+	GetUserNotifications(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]*model.Notification, error)
 }
 
 type Service struct {
@@ -28,9 +30,9 @@ type Service struct {
 	Notification
 }
 
-func New(logger *zap.Logger, repo *repository.Repository, rabbitmq *rabbitmq.MQConn) *Service {
+func New(logger *zap.Logger, repo *repository.Repository, rdb *redis.Client, rabbitmq *rabbitmq.MQConn) *Service {
 	return &Service{
-		User: newUserService(logger, repo, rabbitmq),
-		Notification: newNotificationService(logger, repo, rabbitmq),
+		User: newUserService(logger, repo, rdb, rabbitmq),
+		Notification: newNotificationService(logger, repo, rdb, rabbitmq),
 	}
 }
