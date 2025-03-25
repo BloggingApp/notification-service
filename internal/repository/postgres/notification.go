@@ -91,9 +91,9 @@ func (r *notificationRepo) GetUserNotifications(ctx context.Context, userID uuid
 		SELECT n.id, n.type, n.message, n.created_at
 		FROM notifications n
 		WHERE n.receiver_id = $1
+		ORDER BY n.created_at DESC
 		LIMIT $2
 		OFFSET $3
-		ORDER BY n.created_at DESC
 		`,
 		userID, limit, offset,
 	)

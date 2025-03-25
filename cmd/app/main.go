@@ -3,25 +3,33 @@ package main
 import (
 	"context"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/BloggingApp/notification-service/internal/config"
+	"github.com/BloggingApp/notification-service/internal/handler"
 	"github.com/BloggingApp/notification-service/internal/mailer"
 	"github.com/BloggingApp/notification-service/internal/rabbitmq"
 	"github.com/BloggingApp/notification-service/internal/repository"
 	"github.com/BloggingApp/notification-service/internal/repository/postgres"
 	"github.com/BloggingApp/notification-service/internal/service"
 	"github.com/joho/godotenv"
+	"github.com/redis/go-redis/v9"
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
 
 func main() {
 	ctx := context.Background()
 
-	if err := initEnv(); err != nil {
+	if err := loadEnv(); err != nil {
 		log.Fatalf("failed to load environment variables: %s", err.Error())
+	}
+
+	if err := initConfig(); err != nil {
+		log.Fatalf("failed to initialize config: %s", err.Error())
 	}
 
 	logger, err := newLogger()
@@ -50,8 +58,18 @@ func main() {
 	}
 	log.Println("Successfully connected to PostgreSQL")
 
-	repos := repository.New(db)
-	services := service.New(logger, repos, rabbitmq)
+	rdb := redis.NewClient(&redis.Options{
+		Addr: os.Getenv("REDIS_ADDR"),
+	})
+	pong, err := rdb.Ping(ctx).Result()
+	if err != nil {
+		panic("failed to ping redis: " + err.Error())
+	}
+	log.Printf("Successfully connected to Redis: %s\n", pong)
+
+	repo := repository.New(db)
+	services := service.New(logger, repo, rdb, rabbitmq)
+	handlers := handler.New(services)
 
 	mailer := mailer.New(logger, rabbitmq)
 	mailer.StartProcessing()
@@ -60,6 +78,8 @@ func main() {
 	go services.User.StartUpdating(ctx)
 	go services.User.StartCreatingFollowers(ctx)
 	go services.Notification.StartProcessingNewPostNotifications(ctx)
+
+	go http.ListenAndServe(viper.GetString("app.port"), handlers.SetupRoutes())
 
 	log.Println("Notification service started")
 
@@ -70,8 +90,15 @@ func main() {
 	log.Println("Notification service shutting Down")
 }
 
-func initEnv() error {
+func loadEnv() error {
 	return godotenv.Load(".env")
+}
+
+func initConfig() error {
+	viper.AddConfigPath(".")
+	viper.SetConfigType("yaml")
+	viper.SetConfigName("app")
+	return viper.ReadInConfig()
 }
 
 func newLogger() (*zap.Logger, error) {
