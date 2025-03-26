@@ -79,6 +79,8 @@ func main() {
 	go services.User.StartCreatingFollowers(ctx)
 	go services.Notification.StartProcessingNewPostNotifications(ctx)
 
+	go services.Notification.StartJobs()
+
 	go http.ListenAndServe(viper.GetString("app.port"), handlers.SetupRoutes())
 
 	log.Println("Notification service started")

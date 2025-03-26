@@ -11,6 +11,7 @@ import (
 
 const (
 	GET_NOTIFICATIONS_MAX_LIMIT = 10
+	OLD_NOTIFICATIONS_DAYS = 14
 )
 
 type notificationRepo struct {
@@ -50,12 +51,12 @@ func (r *notificationRepo) CreateBatch(ctx context.Context, notifications []mode
 		return nil
 	}
 
-	query := "INSERT INTO notifications(type, receiver_id, message, created_at) VALUES "
+	query := "INSERT INTO notifications(type, receiver_id, message) VALUES "
 	values := []interface{}{}
 	counter := 1
 
 	for _, n := range notifications {
-		query += fmt.Sprintf("($%d, $%d, $%d, NOW()),", counter, counter+1, counter+2)
+		query += fmt.Sprintf("($%d, $%d, $%d),", counter, counter+1, counter+2)
 		values = append(values, n.Type, n.ReceiverID, n.Message)
 		counter += 3
 	}
@@ -118,4 +119,9 @@ func (r *notificationRepo) GetUserNotifications(ctx context.Context, userID uuid
 	}
 
 	return notifications, nil
+}
+
+func (r *notificationRepo) DeleteOldNotifications(ctx context.Context) error {
+	_, err := r.db.Exec(ctx, "DELETE FROM notifications WHERE created_at < NOW() - MAKE_INTERVAL(days => $1)", OLD_NOTIFICATIONS_DAYS)
+	return err
 }

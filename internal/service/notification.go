@@ -11,6 +11,7 @@ import (
 	"github.com/BloggingApp/notification-service/internal/rabbitmq"
 	"github.com/BloggingApp/notification-service/internal/repository"
 	"github.com/BloggingApp/notification-service/internal/repository/redisrepo"
+	"github.com/go-co-op/gocron/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/redis/go-redis/v9"
@@ -22,14 +23,21 @@ type notificationService struct {
 	repo *repository.Repository
 	rdb *redis.Client
 	rabbitmq *rabbitmq.MQConn
+	scheduler gocron.Scheduler
 }
 
 func newNotificationService(logger *zap.Logger, repo *repository.Repository, rdb *redis.Client, rabbitmq *rabbitmq.MQConn) Notification {
+	scheduler, err := gocron.NewScheduler()
+	if err != nil {
+		panic(err)
+	}
+
 	return &notificationService{
 		logger: logger,
 		repo: repo,
 		rdb: rdb,
 		rabbitmq: rabbitmq,
+		scheduler: scheduler,
 	}
 }
 
@@ -103,4 +111,18 @@ func (s *notificationService) GetUserNotifications(ctx context.Context, userID u
 	}
 
 	return notifications, nil
+}
+
+func (s *notificationService) newDeleteOldNotificationsJob() {
+	s.scheduler.NewJob(gocron.DurationJob(time.Hour * 12), gocron.NewTask(func(ctx context.Context) {
+		if err := s.repo.Postgres.Notification.DeleteOldNotifications(ctx); err != nil {
+			s.logger.Sugar().Errorf("failed to delete old notifications: %s", err.Error())
+		}
+	}))
+}
+
+func (s *notificationService) StartJobs() {
+	s.newDeleteOldNotificationsJob()
+
+	s.scheduler.Start()
 }

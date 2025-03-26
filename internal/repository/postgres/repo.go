@@ -21,6 +21,7 @@ type Notification interface {
 	CreateBatch(ctx context.Context, notifications []model.Notification) error
 	CreateBatched(ctx context.Context, notifications []model.Notification, batchSize int) error
 	GetUserNotifications(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]*model.Notification, error)
+	DeleteOldNotifications(ctx context.Context) error
 }
 
 type PGRepo struct {

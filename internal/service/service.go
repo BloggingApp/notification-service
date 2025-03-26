@@ -23,6 +23,7 @@ type User interface {
 type Notification interface {
 	StartProcessingNewPostNotifications(ctx context.Context)
 	GetUserNotifications(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]*model.Notification, error)
+	StartJobs()
 }
 
 type Service struct {
