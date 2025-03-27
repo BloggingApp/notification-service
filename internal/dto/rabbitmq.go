@@ -29,3 +29,9 @@ type MQFollow struct {
 	UserID     uuid.UUID `json:"user_id"`
 	FollowerID uuid.UUID `json:"follower_id"`
 }
+
+type MQNewPostNotificationsEnabledUpdate struct {
+	UserID     uuid.UUID `json:"user_id"`
+	FollowerID uuid.UUID `json:"follower_id"`
+	Enabled    bool      `json:"enabled"`
+}

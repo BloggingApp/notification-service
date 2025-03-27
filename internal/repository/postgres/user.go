@@ -65,7 +65,7 @@ func (r *userRepo) CreateFollower(ctx context.Context, follower model.Follower) 
 	return err
 }
 
-func (r *userRepo) UpdateFollowerNewPostNotifications(ctx context.Context, follower model.Follower) error {
+func (r *userRepo) UpdateFollowerNewPostNotificationsEnabled(ctx context.Context, follower model.Follower) error {
 	_, err := r.db.Exec(
 		ctx,
 		"UPDATE followers SET new_post_notifications_enabled = $1 WHERE user_id = $2 AND follower_id = $3",

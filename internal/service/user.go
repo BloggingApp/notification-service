@@ -152,3 +152,30 @@ func (s *userService) StartCreatingFollowers(ctx context.Context) {
 		msg.Ack(false)
 	}
 }
+
+func (s *userService) StartUpdatingFollowersNewPostNotificationsEnabled(ctx context.Context) {
+	msgs, err := s.rabbitmq.Consume(rabbitmq.FOLLOWERS_NEW_POST_NOTIFICATIONS_ENABLED_UPDATES_QUEUE)
+	if err != nil {
+		panic(err)
+	}
+
+	for msg := range msgs {
+		var update dto.MQNewPostNotificationsEnabledUpdate
+		if err := json.Unmarshal(msg.Body, &update); err != nil {
+			msg.Ack(false)
+			continue
+		}
+
+		if err := s.repo.Postgres.User.UpdateFollowerNewPostNotificationsEnabled(ctx, model.Follower{
+			UserID: update.UserID,
+			FollowerID: update.FollowerID,
+			NewPostNotificationsEnabled: update.Enabled,
+		}); err != nil {
+			s.logger.Sugar().Errorf("failed to update follower(%s)'s new_post_notifications_enabled for author(%s): %s", update.FollowerID.String(), update.UserID.String(), err.Error())
+			msg.Ack(false)
+			continue
+		}
+
+		msg.Ack(false)
+	}
+}

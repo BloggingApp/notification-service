@@ -13,7 +13,7 @@ type User interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*model.User, error)
 	UpdateByID(ctx context.Context, id uuid.UUID, updates map[string]interface{}) error
 	CreateFollower(ctx context.Context, follower model.Follower) error
-	UpdateFollowerNewPostNotifications(ctx context.Context, follower model.Follower) error
+	UpdateFollowerNewPostNotificationsEnabled(ctx context.Context, follower model.Follower) error
 }
 
 type Notification interface {

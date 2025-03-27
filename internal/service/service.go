@@ -18,6 +18,7 @@ type User interface {
 	StartCreating(ctx context.Context)
 	StartUpdating(ctx context.Context)
 	StartCreatingFollowers(ctx context.Context)
+	StartUpdatingFollowersNewPostNotificationsEnabled(ctx context.Context)
 }
 
 type Notification interface {

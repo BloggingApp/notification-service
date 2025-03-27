@@ -6,4 +6,5 @@ const (
 	NEW_POST_QUEUE = "new-post"
 	NEW_POST_NOTIFICATION_QUEUE = "new-post-notification"
 	FOLLOWS_QUEUE = "follows"
+	FOLLOWERS_NEW_POST_NOTIFICATIONS_ENABLED_UPDATES_QUEUE = "followers-new-post-notifications-enabled-updates"
 )

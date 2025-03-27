@@ -78,6 +78,7 @@ func main() {
 	go services.User.StartUpdating(ctx)
 	go services.User.StartCreatingFollowers(ctx)
 	go services.Notification.StartProcessingNewPostNotifications(ctx)
+	go services.User.StartUpdatingFollowersNewPostNotificationsEnabled(ctx)
 
 	go services.Notification.StartJobs()
 
