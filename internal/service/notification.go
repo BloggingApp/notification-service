@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/BloggingApp/notification-service/internal/dto"
@@ -69,18 +70,19 @@ func (s *notificationService) StartProcessingNewPostNotifications(ctx context.Co
 		}
 
 		notificationType := "newpost"
-		message := fmt.Sprintf("%s has created new post: %s", author.Username, postCreatedDto.PostTitle)
+		content := fmt.Sprintf("%s has created new post: %s", author.Username, postCreatedDto.PostTitle)
 
 		var notifications []model.Notification
 		for _, receiver := range receivers {
 			notifications = append(notifications, model.Notification{
 				Type: notificationType,
 				ReceiverID: receiver,
-				Message: message,
+				Content: content,
+				ResourceID: strconv.Itoa(int(postCreatedDto.PostID)),
 			})
 		}
 
-		if err := s.repo.Postgres.Notification.CreateBatched(ctx, notifications, 200); err != nil {
+		if err := s.repo.Postgres.Notification.CreateBatched(ctx, notifications, 1000); err != nil {
 			s.logger.Sugar().Errorf("failed to create batched notifications for post(%d): %s", postCreatedDto.PostID, err.Error())
 			msg.Ack(false)
 			continue
@@ -125,4 +127,20 @@ func (s *notificationService) StartJobs() {
 	s.newDeleteOldNotificationsJob()
 
 	s.scheduler.Start()
+}
+
+func (s *notificationService) CreateGlobalNotification(ctx context.Context, gn model.GlobalNotification) error {
+	if len(gn.Title) > 255 || gn.Title == "" || len(gn.ResourceLink) > 255 {
+		return ErrInvalidInputForGlobalNotification
+	}
+
+	return s.repo.Postgres.Notification.CreateGlobalNotification(ctx, gn)
+}
+
+func (s *notificationService) GetGlobalNotifications(ctx context.Context, userID uuid.UUID, limit, offset int) ([]*model.GlobalNotification, error) {
+	return s.repo.Postgres.Notification.GetGlobalNotifications(ctx, userID, limit, offset)
+}
+
+func (s *notificationService) MarkGlobalNotificationAsRead(ctx context.Context, userID uuid.UUID, notificationID int64) error {
+	return s.repo.Postgres.Notification.MarkGlobalNotificationAsRead(ctx, userID, notificationID)
 }

@@ -10,6 +10,7 @@ type Notification struct {
 	ID         int64     `json:"id"`
 	Type       string    `json:"type"`
 	ReceiverID uuid.UUID `json:"receiver_id"`
-	Message    string    `json:"message"`
+	Content    string    `json:"content"`
+	ResourceID string    `json:"resource_id"`
 	CreatedAt  time.Time `json:"created_at"`
 }

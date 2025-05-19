@@ -25,6 +25,9 @@ type Notification interface {
 	StartProcessingNewPostNotifications(ctx context.Context)
 	GetUserNotifications(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]*model.Notification, error)
 	StartJobs()
+	CreateGlobalNotification(ctx context.Context, gn model.GlobalNotification) error
+	GetGlobalNotifications(ctx context.Context, userID uuid.UUID, limit, offset int) ([]*model.GlobalNotification, error)
+	MarkGlobalNotificationAsRead(ctx context.Context, userID uuid.UUID, notificationID int64) error
 }
 
 type Service struct {
