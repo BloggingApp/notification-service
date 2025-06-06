@@ -8,6 +8,7 @@ import (
 
 	"github.com/BloggingApp/notification-service/internal/service"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/gorilla/websocket"
 	jwtmanager "github.com/morf1lo/jwt-pair-manager"
 )
 
@@ -15,16 +16,38 @@ type Resp map[string]interface{}
 
 type Handler struct {
 	services *service.Service
+	upgrader *websocket.Upgrader
 }
 
 func New(services *service.Service) *Handler {
 	return &Handler{
 		services: services,
+		upgrader: &websocket.Upgrader{
+			CheckOrigin: func(r *http.Request) bool {
+				return true
+			},
+		},
 	}
 }
 
 func (h *Handler) SetupRoutes() http.Handler {
 	mux := http.NewServeMux()
+
+	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		user, err := h.authMiddleware(r)
+		if err != nil {
+			h.Respond(w, Resp{"error": err.Error()}, http.StatusUnauthorized)
+			return
+		}
+
+		conn, err := h.upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			http.Error(w, "Failed to upgrade", http.StatusInternalServerError)
+			return
+		}
+
+		h.services.Notification.RegisterConnection(user.ID, conn)
+	})
 
 	mux.HandleFunc("/api/v1/notifications", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {

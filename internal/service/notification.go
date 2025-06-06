@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/BloggingApp/notification-service/internal/dto"
@@ -14,6 +15,7 @@ import (
 	"github.com/BloggingApp/notification-service/internal/repository/redisrepo"
 	"github.com/go-co-op/gocron/v2"
 	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
 	"github.com/jackc/pgx/v5"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
@@ -25,6 +27,8 @@ type notificationService struct {
 	rdb *redis.Client
 	rabbitmq *rabbitmq.MQConn
 	scheduler gocron.Scheduler
+	conns *sync.Map
+	deliveryChan chan model.NotificationDelivery
 }
 
 func newNotificationService(logger *zap.Logger, repo *repository.Repository, rdb *redis.Client, rabbitmq *rabbitmq.MQConn) Notification {
@@ -33,12 +37,56 @@ func newNotificationService(logger *zap.Logger, repo *repository.Repository, rdb
 		panic(err)
 	}
 
-	return &notificationService{
+	s := &notificationService{
 		logger: logger,
 		repo: repo,
 		rdb: rdb,
 		rabbitmq: rabbitmq,
 		scheduler: scheduler,
+		conns: &sync.Map{},
+		deliveryChan: make(chan model.NotificationDelivery, 1000),
+	}
+
+	for range 5 {
+		go s.deliveryWorker()
+	}
+
+	return s
+}
+
+func (s *notificationService) deliveryWorker() {
+	for msg := range s.deliveryChan {
+		val, ok := s.conns.Load(msg.ReceiverID)
+		if !ok {
+			continue
+		}
+
+		conn, ok := val.(*websocket.Conn)
+		if !ok {
+			continue
+		}
+
+		payload := map[string]string{
+			"type": msg.Type,
+			"content": msg.Content,
+			"resource_id": msg.ResourceID,
+		}
+		if err := conn.WriteJSON(payload); err != nil {
+			s.logger.Sugar().Errorf("failed to write json msg to receiver(%s)'s conn: %s", msg.ReceiverID.String(), err.Error())
+		}
+	}
+}
+
+func (s *notificationService) RegisterConnection(userID uuid.UUID, conn *websocket.Conn) {
+	s.conns.Store(userID, conn)
+}
+
+func (s *notificationService) UnregisterConnection(userID uuid.UUID) {
+	if val, ok := s.conns.Load(userID); ok {
+		if conn, ok := val.(*websocket.Conn); ok {
+			conn.Close()
+		}
+		s.conns.Delete(userID)
 	}
 }
 
@@ -71,6 +119,7 @@ func (s *notificationService) StartProcessingNewPostNotifications(ctx context.Co
 
 		notificationType := "newpost"
 		content := fmt.Sprintf("%s has created new post: %s", author.Username, postCreatedDto.PostTitle)
+		resourceID := strconv.Itoa(int(postCreatedDto.PostID))
 
 		var notifications []model.Notification
 		for _, receiver := range receivers {
@@ -78,7 +127,7 @@ func (s *notificationService) StartProcessingNewPostNotifications(ctx context.Co
 				Type: notificationType,
 				ReceiverID: receiver,
 				Content: content,
-				ResourceID: strconv.Itoa(int(postCreatedDto.PostID)),
+				ResourceID: resourceID,
 			})
 		}
 
@@ -89,6 +138,15 @@ func (s *notificationService) StartProcessingNewPostNotifications(ctx context.Co
 		}
 
 		msg.Ack(false)
+
+		for _, receiver := range receivers {
+			s.deliveryChan <- model.NotificationDelivery{
+				ReceiverID: receiver,
+				Type: notificationType,
+				Content: content,
+				ResourceID: resourceID,
+			}
+		}
 	}
 }
 

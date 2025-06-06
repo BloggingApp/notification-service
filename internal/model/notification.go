@@ -14,3 +14,10 @@ type Notification struct {
 	ResourceID string    `json:"resource_id"`
 	CreatedAt  time.Time `json:"created_at"`
 }
+
+type NotificationDelivery struct {
+	ReceiverID uuid.UUID
+	Type       string
+	Content    string
+	ResourceID string
+}

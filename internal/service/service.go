@@ -7,6 +7,7 @@ import (
 	"github.com/BloggingApp/notification-service/internal/rabbitmq"
 	"github.com/BloggingApp/notification-service/internal/repository"
 	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
@@ -22,6 +23,8 @@ type User interface {
 }
 
 type Notification interface {
+	RegisterConnection(userID uuid.UUID, conn *websocket.Conn)
+	UnregisterConnection(userID uuid.UUID)
 	StartProcessingNewPostNotifications(ctx context.Context)
 	GetUserNotifications(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]*model.Notification, error)
 	StartJobs()
