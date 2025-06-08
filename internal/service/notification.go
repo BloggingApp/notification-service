@@ -79,6 +79,16 @@ func (s *notificationService) deliveryWorker() {
 
 func (s *notificationService) RegisterConnection(userID uuid.UUID, conn *websocket.Conn) {
 	s.conns.Store(userID, conn)
+
+	go func(userID uuid.UUID, c *websocket.Conn) {
+		for {
+			_, _, err := c.ReadMessage()
+			if err != nil {
+				s.UnregisterConnection(userID)
+				break
+			}
+		}
+	}(userID, conn)
 }
 
 func (s *notificationService) UnregisterConnection(userID uuid.UUID) {
