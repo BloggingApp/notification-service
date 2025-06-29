@@ -31,6 +31,7 @@ type Notification interface {
 	CreateGlobalNotification(ctx context.Context, gn model.GlobalNotification) error
 	GetGlobalNotifications(ctx context.Context, userID uuid.UUID, limit, offset int) ([]*model.GlobalNotification, error)
 	MarkGlobalNotificationAsRead(ctx context.Context, userID uuid.UUID, notificationID int64) error
+	StartProcessingPostValidationStatusUpdates(ctx context.Context)
 }
 
 type Service struct {

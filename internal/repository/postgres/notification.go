@@ -46,6 +46,11 @@ func (r *notificationRepo) GetInterestedFollowers(ctx context.Context, authorID 
 	return followerIDs, nil
 }
 
+func (r *notificationRepo) Create(ctx context.Context, notification model.Notification) error {
+	_, err := r.db.Exec(ctx, "INSERT INTO notifications(type, receiver_id, content, resource_id) VALUES($1, $2, $3, $4)", notification.Type, notification.ReceiverID, notification.Content, notification.ResourceID)
+	return err
+}
+
 func (r *notificationRepo) CreateBatch(ctx context.Context, notifications []model.Notification) error {
 	if len(notifications) == 0 {
 		return nil

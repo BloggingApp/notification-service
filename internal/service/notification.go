@@ -109,6 +109,7 @@ func (s *notificationService) StartProcessingNewPostNotifications(ctx context.Co
 	for msg := range msgs {
 		var postCreatedDto dto.MQPostCreated
 		if err := json.Unmarshal(msg.Body, &postCreatedDto); err != nil {
+			s.logger.Sugar().Errorf("failed to unmarshal data from queue(%s) to json: %s", rabbitmq.NEW_POST_QUEUE, err.Error())
 			msg.Ack(false)
 			continue
 		}
@@ -127,14 +128,13 @@ func (s *notificationService) StartProcessingNewPostNotifications(ctx context.Co
 			continue
 		}
 
-		notificationType := "newpost"
 		content := fmt.Sprintf("%s has created new post: %s", author.Username, postCreatedDto.PostTitle)
 		resourceID := strconv.Itoa(int(postCreatedDto.PostID))
 
 		var notifications []model.Notification
 		for _, receiver := range receivers {
 			notifications = append(notifications, model.Notification{
-				Type: notificationType,
+				Type: NEW_POST_NOTIFICATION_TYPE,
 				ReceiverID: receiver,
 				Content: content,
 				ResourceID: resourceID,
@@ -152,7 +152,7 @@ func (s *notificationService) StartProcessingNewPostNotifications(ctx context.Co
 		for _, receiver := range receivers {
 			s.deliveryChan <- model.NotificationDelivery{
 				ReceiverID: receiver,
-				Type: notificationType,
+				Type: NEW_POST_NOTIFICATION_TYPE,
 				Content: content,
 				ResourceID: resourceID,
 			}
@@ -160,7 +160,7 @@ func (s *notificationService) StartProcessingNewPostNotifications(ctx context.Co
 	}
 }
 
-func (s *notificationService) GetUserNotifications(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]*model.Notification, error) {
+func (s *notificationService) GetUserNotifications(ctx context.Context, userID uuid.UUID, limit, offset int) ([]*model.Notification, error) {
 	notificationsCache, err := redisrepo.Get[[]*model.Notification](s.rdb, ctx, redisrepo.UserNotificationsKey(userID.String(), limit, offset))
 	if err == nil {
 		return *notificationsCache, nil
@@ -211,4 +211,50 @@ func (s *notificationService) GetGlobalNotifications(ctx context.Context, userID
 
 func (s *notificationService) MarkGlobalNotificationAsRead(ctx context.Context, userID uuid.UUID, notificationID int64) error {
 	return s.repo.Postgres.Notification.MarkGlobalNotificationAsRead(ctx, userID, notificationID)
+}
+
+func (s *notificationService) StartProcessingPostValidationStatusUpdates(ctx context.Context) {
+	msgs, err := s.rabbitmq.Consume(rabbitmq.POST_VALIDATION_STATUS_UPDATES_QUEUE)
+	if err != nil {
+		panic(err)
+	}
+
+	for msg := range msgs {
+		var data dto.MQPostValidationStatusUpdate
+		if err := json.Unmarshal(msg.Body, &data); err != nil {
+			s.logger.Sugar().Errorf("failed to unmarshal data from queue(%s) to json: %s", rabbitmq.POST_VALIDATION_STATUS_UPDATES_QUEUE, err.Error())
+			msg.Ack(false)
+			continue
+		}
+
+		resourceID := strconv.Itoa(int(data.PostID))
+
+		if err := s.repo.Postgres.Notification.Create(ctx, model.Notification{
+			Type: POST_VALIDATION_STATUS_UPDATE_TYPE,
+			ReceiverID: data.UserID,
+			Content: data.Status,
+			ResourceID: resourceID,
+		}); err != nil {
+			s.logger.Sugar().Errorf("failed to create post validation status update notification for user(%s): %s", data.UserID.String(), err.Error())
+			msg.Ack(false)
+			continue
+		}
+
+		msg.Ack(false)
+
+		receiver, ok := s.conns.Load(data.UserID)
+		if !ok {
+			continue
+		}
+		receiverID, ok := receiver.(uuid.UUID)
+		if !ok {
+			continue
+		}
+		s.deliveryChan <- model.NotificationDelivery{
+			ReceiverID: receiverID,
+			Type: POST_VALIDATION_STATUS_UPDATE_TYPE,
+			Content: data.Status,
+			ResourceID: resourceID,
+		}
+	}
 }
