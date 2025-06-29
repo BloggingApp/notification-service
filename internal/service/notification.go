@@ -232,7 +232,7 @@ func (s *notificationService) StartProcessingPostValidationStatusUpdates(ctx con
 		if err := s.repo.Postgres.Notification.Create(ctx, model.Notification{
 			Type: POST_VALIDATION_STATUS_UPDATE_TYPE,
 			ReceiverID: data.UserID,
-			Content: data.Status,
+			Content: data.StatusMsg,
 			ResourceID: resourceID,
 		}); err != nil {
 			s.logger.Sugar().Errorf("failed to create post validation status update notification for user(%s): %s", data.UserID.String(), err.Error())
@@ -253,7 +253,7 @@ func (s *notificationService) StartProcessingPostValidationStatusUpdates(ctx con
 		s.deliveryChan <- model.NotificationDelivery{
 			ReceiverID: receiverID,
 			Type: POST_VALIDATION_STATUS_UPDATE_TYPE,
-			Content: data.Status,
+			Content: data.StatusMsg,
 			ResourceID: resourceID,
 		}
 	}
